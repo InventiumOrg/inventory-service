@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	// models "inventory-service/models/sqlc"
+
 	"github.com/gin-gonic/gin"
 )
 type Handlers struct{
@@ -11,6 +13,8 @@ type getInventoryRequest struct {
 }
 
 func (h *Handlers) GetInventory(ctx *gin.Context) {
+	// conn, err := pgx.Connect(context.Background(), config.DBSource)
+	// query := models.New(conn)
 	ctx.JSON(200, gin.H{"message": "Get Inventory"})
 }
 

@@ -1,15 +1,11 @@
-FROM golang:1.24
+FROM docker.io/golang:1.24
 
-ARG SERVICE_NAME=default
+COPY go.mod go.sum ./
 
-RUN mkdir /${SERVICE_NAME}
-
-WORKDIR /${SERVICE_NAME}
+RUN go mod download
 
 COPY . .
 
-RUN go mod download 
+RUN CGO_ENABLED=0 GOOS=linux go build -v -o ./inventory-service .
 
-RUN CGO_ENABLED=0 GOOS=linux go build -o /usr/local/bin/app .
-
-CMD ["/usr/local/bin/app"]
+CMD ["/inventory-service"]

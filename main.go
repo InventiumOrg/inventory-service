@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+
 	"inventory-service/api"
 	"inventory-service/config"
 	"log/slog"

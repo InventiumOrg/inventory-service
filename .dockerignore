@@ -2,3 +2,4 @@ sqlc.yaml
 Dockerfile
 .gitignore
 .github
+.git

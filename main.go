@@ -1,13 +1,37 @@
 package main
 
 import (
-	"msg-inventory/config"
+	"context"
+	"inventory-service/api"
+	"inventory-service/config"
+	"log/slog"
 
-	"github.com/gin-gonic/gin"
+	// models "inventory-service/models/sqlc"
+	"os"
+
+	"github.com/jackc/pgx/v5"
 )
 
 func main() {
-	router := gin.Default()
-	router.Run(":13740")
-	config.LoadConfig("app.env")
+  router := api.NewServer()
+
+  config, err := config.LoadConfig(".")
+  if err != nil {
+    slog.Error("Failed to load config: ", slog.Any("ERROR", err))
+    os.Exit(1)
+  }
+
+  slog.Info("Connecting to database", slog.String("db_source", config.DBSource))
+  conn, err := pgx.Connect(context.Background(), config.DBSource)
+  if err != nil {
+    slog.Error("Unable to connect to database: ", slog.Any("ERROR", err))
+    os.Exit(1)
+  }
+  slog.Info("Connected to database successfully")
+  defer conn.Close(context.Background())
+
+  // q := models.New(conn)
+  router.Run(":13740")
+  
+
 }

@@ -4,6 +4,7 @@ import "github.com/spf13/viper"
 
 type Config struct {
 	DBSource      string `mapstructure:"DB_SOURCE"`
+	ClerKKey      string `mapstructure:"CLERK_KEY"`
 }
 
 func LoadConfig(path string) (config Config, err error) {

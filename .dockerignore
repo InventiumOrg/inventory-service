@@ -3,3 +3,6 @@ Dockerfile
 .gitignore
 .github
 .git
+Makefile
+LICENSE
+READMe.md

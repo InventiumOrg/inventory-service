@@ -12,7 +12,6 @@ https://gin-gonic.com/en/docs/quickstart/
 
 https://docs.sqlc.dev/en/stable/index.html
 
-
 ## Project Structures:
 ```
     inventory-service/
@@ -38,3 +37,24 @@ https://docs.sqlc.dev/en/stable/index.html
 - Create Inventory: /inventory/:id
 - Update Inventory: /inventory/:id
 - Delete Inventory: /inventory/:id
+
+## Usage
+
+How to perform db migration:
+
+Prerequisites:
+- Set $DB_SOURCE to the PostgreSQL URL
+
+Run the following DB Migration Steps:
+- For DB Migration Up
+```
+    $ make migrateup
+```
+- For DB Migration Down
+```
+    $ make migratedown
+```
+Run this command to generate sqlc code
+```
+    $ make sqlc
+```

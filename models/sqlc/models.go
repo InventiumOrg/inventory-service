@@ -11,8 +11,9 @@ import (
 type Inventory struct {
 	ID        int64
 	Name      string
+	Unit      string
 	Quantity  int32
 	Category  string
-	Located   string
+	Location  string
 	CreatedAt pgtype.Timestamptz
 }

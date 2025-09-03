@@ -11,33 +11,36 @@ import (
 
 const createInventory = `-- name: CreateInventory :one
 INSERT INTO inventory (
-    name, quantity, category, located
+    name, unit, quantity, category, location
 ) VALUES (
-    $1, $2, $3, $4
-) RETURNING id, name, quantity, category, located, created_at
+    $1, $2, $3, $4, $5
+) RETURNING id, name, unit, quantity, category, location, created_at
 `
 
 type CreateInventoryParams struct {
 	Name     string
+	Unit     string
 	Quantity int32
 	Category string
-	Located  string
+	Location string
 }
 
 func (q *Queries) CreateInventory(ctx context.Context, arg CreateInventoryParams) (Inventory, error) {
 	row := q.db.QueryRow(ctx, createInventory,
 		arg.Name,
+		arg.Unit,
 		arg.Quantity,
 		arg.Category,
-		arg.Located,
+		arg.Location,
 	)
 	var i Inventory
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
+		&i.Unit,
 		&i.Quantity,
 		&i.Category,
-		&i.Located,
+		&i.Location,
 		&i.CreatedAt,
 	)
 	return i, err
@@ -51,4 +54,44 @@ WHERE id = $1
 func (q *Queries) DeleteInventory(ctx context.Context, id int64) error {
 	_, err := q.db.Exec(ctx, deleteInventory, id)
 	return err
+}
+
+const listInventory = `-- name: ListInventory :many
+SELECT id, name, unit, quantity, category, location, created_at
+FROM inventory
+ORDER BY created_at DESC
+LIMIT $1 OFFSET $2
+`
+
+type ListInventoryParams struct {
+	Limit  int32
+	Offset int32
+}
+
+func (q *Queries) ListInventory(ctx context.Context, arg ListInventoryParams) ([]Inventory, error) {
+	rows, err := q.db.Query(ctx, listInventory, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Inventory
+	for rows.Next() {
+		var i Inventory
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Unit,
+			&i.Quantity,
+			&i.Category,
+			&i.Location,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

@@ -13,6 +13,7 @@ type Inventory struct {
 	Name      string
 	Unit      string
 	Quantity  int32
+	Measure   string
 	Category  string
 	Location  string
 	CreatedAt pgtype.Timestamptz

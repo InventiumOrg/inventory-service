@@ -116,5 +116,32 @@ func (h *Handlers) CreateInventory(ctx *gin.Context) {
 }
 
 func (h *Handlers) DeleteInventory(ctx *gin.Context) {
-  ctx.JSON(200, gin.H{"message": "Delete Inventory"})
+  _, existed := ctx.Get("claims")
+  if !existed {
+    ctx.JSON(http.StatusInternalServerError, gin.H{
+      "error": "Claims not found in context",
+    })
+    return
+  }
+
+  idStr := ctx.Param("id")
+  id, err := strconv.ParseInt(idStr, 10, 32)
+  if err != nil {
+    ctx.JSON(http.StatusBadRequest, gin.H{
+      "error": "Invalid quantity format",
+    })
+    return
+  }
+
+  err = h.queries.DeleteInventory(ctx, id)
+  if err != nil {
+    slog.Error("Failed to delete inventory: ", slog.Any("err", err.Error()))
+    ctx.JSON(http.StatusInternalServerError, gin.H{
+      "error": "Failed to delete inventory",
+    })
+    return
+  } else {
+    ctx.JSON(200, gin.H{"message": "Delete Inventory Successfully"})
+  }
+
 }

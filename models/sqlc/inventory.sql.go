@@ -61,6 +61,27 @@ func (q *Queries) DeleteInventory(ctx context.Context, id int64) error {
 	return err
 }
 
+const getInventory = `-- name: GetInventory :one
+SELECT id, name, unit, quantity, measure, category, location, created_at FROM inventory
+WHERE id = $1
+`
+
+func (q *Queries) GetInventory(ctx context.Context, id int64) (Inventory, error) {
+	row := q.db.QueryRow(ctx, getInventory, id)
+	var i Inventory
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Unit,
+		&i.Quantity,
+		&i.Measure,
+		&i.Category,
+		&i.Location,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const listInventory = `-- name: ListInventory :many
 SELECT id, name, unit, quantity, category, measure, location, created_at
 FROM inventory
@@ -111,4 +132,50 @@ func (q *Queries) ListInventory(ctx context.Context, arg ListInventoryParams) ([
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateInventory = `-- name: UpdateInventory :one
+UPDATE inventory
+SET name = $2,
+    unit = $3,
+    quantity = $4,
+    measure = $5,
+    category = $6,
+    location = $7
+WHERE id = $1
+RETURNING id, name, unit, quantity, measure, category, location, created_at
+`
+
+type UpdateInventoryParams struct {
+	ID       int64
+	Name     string
+	Unit     string
+	Quantity int32
+	Measure  string
+	Category string
+	Location string
+}
+
+func (q *Queries) UpdateInventory(ctx context.Context, arg UpdateInventoryParams) (Inventory, error) {
+	row := q.db.QueryRow(ctx, updateInventory,
+		arg.ID,
+		arg.Name,
+		arg.Unit,
+		arg.Quantity,
+		arg.Measure,
+		arg.Category,
+		arg.Location,
+	)
+	var i Inventory
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Unit,
+		&i.Quantity,
+		&i.Measure,
+		&i.Category,
+		&i.Location,
+		&i.CreatedAt,
+	)
+	return i, err
 }

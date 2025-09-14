@@ -10,4 +10,6 @@ migratedown:
 	migrate -path ./models/migration -database "postgresql://root:secret@localhost:5432/inventium?sslmode=disable" -verbose down
 sqlc:
 	sqlc generate --no-remote
-.PHONY: postgres createdb dropdb migrateup migratedown sqlc
+loaddata:
+	PGPASSWORD=secret psql -h localhost -U root -d inventium -f data/sql/inventium.sql
+.PHONY: postgres createdb dropdb migrateup migratedown sqlc loaddata

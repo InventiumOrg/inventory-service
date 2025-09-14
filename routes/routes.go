@@ -29,7 +29,7 @@ func (r *Route) AddRoutes(router *gin.Engine) {
     {
       inventory.GET("/:id", r.handlers.GetInventory)
       inventory.GET("/list", r.handlers.ListInventory)
-      inventory.POST("/:id", r.handlers.CreateInventory)
+      inventory.POST("/create", r.handlers.CreateInventory)
       inventory.PUT("/:id", r.handlers.UpdateInventory)
       inventory.DELETE("/:id", r.handlers.DeleteInventory)
     }

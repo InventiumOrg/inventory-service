@@ -3,8 +3,16 @@ package config
 import "github.com/spf13/viper"
 
 type Config struct {
-	DBSource      string `mapstructure:"DB_SOURCE"`
-	ClerKKey      string `mapstructure:"CLERK_KEY"`
+	ServiceName              string `mapstructure:"SERVICE_NAME"`
+	OTELExporterOTLPEndpoint string `mapstructure:"OTEL_EXPORTER_OTLP_ENDPOINT"`
+	OTELExporterOTLPHeaders  string `mapstructure:"OTEL_EXPORTER_OTLP_HEADERS"`
+	OTELResourceAttreibutes  string `mapstructure:"OTEL_RESOURCE_ATTRIBUTES"`
+	DBSource                 string `mapstructure:"DB_SOURCE"`
+	ClerkKey                 string `mapstructure:"CLERK_KEY"`
+	LogFilePath              string `mapstructure:"LOG_FILE_PATH"`
+	LokiURL                  string `mapstructure:"LOKI_URL"`
+	SyslogAddress            string `mapstructure:"SYSLOG_ADDRESS"`
+	SyslogNetwork            string `mapstructure:"SYSLOG_NETWORK"`
 }
 
 func LoadConfig(path string) (config Config, err error) {

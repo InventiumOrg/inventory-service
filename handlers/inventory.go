@@ -1,18 +1,23 @@
 package handlers
 
 import (
-  //"fmt"
+  "fmt"
   models "inventory-service/models/sqlc"
   "log/slog"
   "net/http"
   "strconv"
+  
   "github.com/gin-gonic/gin"
   "github.com/jackc/pgx/v5"
+  "go.opentelemetry.io/otel"
+  "go.opentelemetry.io/otel/attribute"
+  "go.opentelemetry.io/otel/trace"
 )
 
 type Handlers struct {
   db *pgx.Conn
   queries *models.Queries
+  tracer trace.Tracer
   getInventoryRequest
 }
 
@@ -20,6 +25,7 @@ func NewHandlers(db *pgx.Conn) *Handlers {
   return &Handlers{
     db:      db,
     queries: models.New(db),
+    tracer:  otel.Tracer("inventory-service/handlers"),
   }
 }
 
@@ -55,28 +61,50 @@ func (h *Handlers) GetInventory(ctx *gin.Context) {
 }
 
 func (h *Handlers) ListInventory(ctx *gin.Context) {
+  // Start a new span for this operation
+  spanCtx, span := h.tracer.Start(ctx.Request.Context(), "ListInventory")
+  defer span.End()
+  
   _, existed := ctx.Get("claims")
   if !existed {
+    span.RecordError(fmt.Errorf("claims not found in context"))
+    span.SetAttributes(attribute.String("error", "claims_not_found"))
     ctx.JSON(http.StatusInternalServerError, gin.H{
       "error": "Claims not found in context",
     })
+    return
   }
-  inventories, err := h.queries.ListInventory(ctx, models.ListInventoryParams{
+  
+  // Add attributes to the span
+  span.SetAttributes(
+    attribute.Int("inventory.limit", 10),
+    attribute.Int("inventory.offset", 0),
+  )
+  
+  inventories, err := h.queries.ListInventory(spanCtx, models.ListInventoryParams{
     Limit: 10,
     Offset: 0,
   })
   if err != nil {
-    slog.Error("Got an error while listing inventories: ", slog.Any(err.Error(), "err"))
-  } else {
-    ctx.JSON(200, gin.H{
-      "message": "List Inventory", 
-      "data": inventories,
+    span.RecordError(err)
+    span.SetAttributes(attribute.String("error", "database_query_failed"))
+    slog.Error("Got an error while listing inventories: ", slog.Any("err", err.Error()))
+    ctx.JSON(http.StatusInternalServerError, gin.H{
+      "error": "Failed to list inventories",
     })
+    return
   }
 
-  // for _, inventory := range inventories{
-  //   fmt.Printf("%v\n", inventory)
-  // }
+  // Record successful operation
+  span.SetAttributes(
+    attribute.Int("inventory.count", len(inventories)),
+    attribute.String("operation.status", "success"),
+  )
+
+  ctx.JSON(200, gin.H{
+    "message": "List Inventory", 
+    "data": inventories,
+  })
 }
 
 func (h *Handlers) UpdateInventory(ctx *gin.Context) {

@@ -129,15 +129,3 @@ func (s *Server) metricsMiddleware() gin.HandlerFunc {
 		}
 	}
 }
-
-// Shutdown gracefully shuts down the server and OpenTelemetry
-func (s *Server) Shutdown(ctx context.Context) error {
-  if s.otelShutdown != nil {
-    if err := s.otelShutdown(ctx); err != nil {
-      slog.Error("Failed to shutdown OpenTelemetry", slog.Any("err", err))
-      return err
-    }
-    slog.Info("OpenTelemetry shutdown successfully")
-  }
-  return nil
-}

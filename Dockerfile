@@ -10,6 +10,6 @@ COPY . .
 
 RUN ls -lhR .
 
-RUN CGO_ENABLED=0 GOOS=linux go build -v -o ./inventory-service .
+RUN CGO_ENABLED=0 GOOS=linux go build -o ./inventory-service .
 
 CMD ["./inventory-service"]

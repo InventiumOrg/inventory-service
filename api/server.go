@@ -15,58 +15,62 @@ import (
 )
 
 type Server struct {
-	router          *gin.Engine
-	routes          *routes.Route
-	db              *pgx.Conn
-	otelShutdown    func(context.Context) error
-	metrics         *observability.AppMetrics
-	businessMetrics *observability.BusinessMetrics
+	router            *gin.Engine
+	routes            *routes.Route
+	db                *pgx.Conn
+	otelShutdown      func(context.Context) error
+	metrics           *observability.AppMetrics
+	prometheusMetrics *observability.PrometheusMetrics
 }
 
 func NewServer(db *pgx.Conn, serviceName, serviceVersion, otelEndpoint, otelHeaders string) *Server {
 	// Setup OpenTelemetry
-	ctx := context.Background()
-	otelShutdown, err := observability.SetupOTelSDK(ctx, serviceName, serviceVersion, otelEndpoint, otelHeaders)
-	if err != nil {
-		slog.Error("Failed to setup OpenTelemetry", slog.Any("error", err))
-		// Continue without OpenTelemetry
-		otelShutdown = func(context.Context) error { return nil }
-	}
+	// ctx := context.Background()
+	// otelShutdown, err := observability.SetupOTelSDK(ctx, serviceName, serviceVersion, otelEndpoint, otelHeaders)
+	// if err != nil {
+	// 	slog.Error("Failed to setup OpenTelemetry", slog.Any("error", err))
+	// 	// Continue without OpenTelemetry
+	// 	otelShutdown = func(context.Context) error { return nil }
+	// }
 
-	// Create metrics
+	// Create OTEL metrics
 	metrics, err := observability.CreateMetrics()
 	if err != nil {
-		slog.Error("Failed to create metrics", slog.Any("error", err))
+		slog.Error("Failed to create OTEL metrics", slog.Any("error", err))
 	}
 
-	// Create business metrics
-	businessMetrics, err := observability.CreateBusinessMetrics()
-	if err != nil {
-		slog.Error("Failed to create business metrics", slog.Any("error", err))
-	}
+	// Create Prometheus metrics
+	prometheusMetrics := observability.NewPrometheusMetrics(serviceName)
 
 	router := gin.Default()
 
 	// Add metrics middleware
 	server := &Server{
-		router:          router,
-		db:              db,
-		otelShutdown:    otelShutdown,
-		metrics:         metrics,
-		businessMetrics: businessMetrics,
+		router: router,
+		db:     db,
+		// otelShutdown:      otelShutdown,
+		metrics:           metrics,
+		prometheusMetrics: prometheusMetrics,
 	}
 
-	// Add middleware
-	router.Use(server.metricsMiddleware())
+	// Add Prometheus middleware (this will collect HTTP metrics)
+	router.Use(prometheusMetrics.PrometheusMiddleware())
+
+	// // Add OTEL middleware
+	// router.Use(server.metricsMiddleware())
+
+	// Setup Prometheus /metrics endpoint
+	observability.SetupPrometheusEndpoint(router)
+
 	server.router.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:3000"},
+		AllowOrigins:     []string{"http://localhost:8080"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"},
 		AllowHeaders:     []string{"Origins", "Content-Type", "Authorization", "Bearer"},
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 	}))
 	// Setup routes
-	server.routes = routes.NewRoute(db, businessMetrics)
+	server.routes = routes.NewRoute(db, prometheusMetrics)
 	server.routes.AddHealthRoutes(router)
 	server.routes.AddInventoryRoutes(router)
 

@@ -12,36 +12,11 @@ services:
       - app.env
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:13740/health/healthz"]
+      test: ["CMD", "curl", "-f", "http://localhost:13740/healthz"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
-
-  # Add Prometheus to the same compose file
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: prometheus
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
-      - prometheus_data:/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/etc/prometheus/console_libraries'
-      - '--web.console.templates=/etc/prometheus/consoles'
-      - '--storage.tsdb.retention.time=200h'
-      - '--web.enable-lifecycle'
-    networks:
-      - inventium
-    restart: unless-stopped
-    depends_on:
-      - inventory-service
-
-volumes:
-  prometheus_data:
 
 networks:
   inventium:

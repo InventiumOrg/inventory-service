@@ -5,15 +5,21 @@ import (
 	"inventory-service/api"
 	"inventory-service/config"
 	"inventory-service/observability"
+	"inventory-service/processors"
 	"log/slog"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/clerk/clerk-sdk-go/v2"
 	"github.com/jackc/pgx/v5"
+	"github.com/segmentio/kafka-go"
 )
 
 var conn *pgx.Conn
+var consumer *kafka.Reader
+var dialer *kafka.Dialer
 
 const attemptThreshold = 5
 
@@ -121,7 +127,41 @@ func main() {
 
 	// Create server with inventory-specific service name
 	router := api.NewServer(conn, config.ServiceName, "1.0.0", config.OTELExporterOTLPEndpoint, config.OTELExporterOTLPHeaders)
+	invetoryProcessor := processors.NewInventoryProcessor(conn, consumer, dialer)
+	err = invetoryProcessor.Init(config)
+	if err != nil {
+		slog.Error("Error bootstrapping Kafka consumer!", slog.Any("ERROR", err))
+	}
 
-	// Use different port for inventory service (e.g., 15351 instead of 15350)
-	router.Run(":13740", config.ServiceName)
+	// Create context for graceful shutdown
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Channel to listen for interrupt signal to trigger shutdown
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+	// Start Kafka consumer in a goroutine
+	go func() {
+		slog.Info("Starting Kafka consumer...")
+		invetoryProcessor.Start(ctx)
+	}()
+
+	// Start HTTP server in a goroutine
+	go func() {
+		slog.Info("Starting HTTP server on :13740...")
+		if err := router.Run(":13740", config.ServiceName); err != nil {
+			slog.Error("HTTP server failed", "error", err)
+			cancel()
+		}
+	}()
+
+	// Wait for interrupt signal to gracefully shutdown
+	<-quit
+	slog.Info("Shutting down server...")
+
+	// Cancel context to stop Kafka consumer
+	cancel()
+
+	slog.Info("Server exited")
 }

@@ -247,7 +247,11 @@ func (h *Handlers) UpdateInventory(ctx *gin.Context) {
 		})
 		return
 	}
-	defer tx.Rollback(ctx) // This will be ignored if tx.Commit() succeeds
+	defer func() {
+		if err := tx.Rollback(ctx); err != nil && err != pgx.ErrTxClosed {
+			slog.Error("Failed to rollback transaction", "error", err)
+		}
+	}()
 
 	// Create queries with transaction
 	qtx := h.queries.WithTx(tx)

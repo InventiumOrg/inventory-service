@@ -165,7 +165,11 @@ func (h *LokiHandler) sendToLoki(record slog.Record) {
 	if err != nil {
 		return // Silently fail
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			slog.Error("Error closing connnection to Loki", slog.Any("Error", err))
+		}
+	}()
 }
 
 // SetupDirectLokiLogging configures slog to send logs directly to Loki

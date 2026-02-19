@@ -95,7 +95,9 @@ func main() {
 	}
 
 	clerk.SetKey(config.ClerkKey)
-	slog.Info("Connecting to database", slog.String("db_source", config.DBSource))
+	test := os.Getenv("DB_SOURCE")
+	print(test)
+	slog.Info("Connecting to database", slog.String("DB_SOURCE", config.DBSource))
 
 	attempt := 1
 	for attempt <= attemptThreshold {

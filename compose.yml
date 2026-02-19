@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   inventory-service:
-    image: inventory-service:1.0.0
+    image: 743008455320.dkr.ecr.ap-southeast-1.amazonaws.com/inventium/inventory-service:1.0.0
     container_name: inventory-service
     ports:
       - "13740:13740"

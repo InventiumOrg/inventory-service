@@ -56,8 +56,8 @@ func NewServer(db *pgx.Conn, serviceName, serviceVersion, otelEndpoint, otelHead
 	// Add Prometheus middleware (this will collect HTTP metrics)
 	router.Use(prometheusMetrics.PrometheusMiddleware())
 
-	// // Add OTEL middleware
-	// router.Use(server.metricsMiddleware())
+	// Add OTEL middleware for request tracing
+	router.Use(server.metricsMiddleware())
 
 	// Setup Prometheus /metrics endpoint
 	observability.SetupPrometheusEndpoint(router)
@@ -97,7 +97,9 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	}
 
 	if s.db != nil {
-		s.db.Close(ctx)
+		if err := s.db.Close(ctx); err != nil {
+			slog.Error("Failed to close database connection", "error", err)
+		}
 	}
 
 	return nil

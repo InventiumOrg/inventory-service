@@ -1,8 +1,52 @@
-sqlc.yaml
-Dockerfile
+# Git
+.git
 .gitignore
 .github
-.git
-Makefile
-LICENSE
-READMe.md
+
+# Documentation
+*.md
+!README.md
+BUILD.md
+SCHEMA_REGISTRY_INTEGRATION.md
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Build artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+inventory-service
+*.test
+*.out
+
+# Dependencies
+vendor/
+
+# Environment files
+*.env
+.env.local
+.env.*.local
+app.env
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test coverage
+*.coverprofile
+coverage.html
+
+# Temporary files
+tmp/
+temp/

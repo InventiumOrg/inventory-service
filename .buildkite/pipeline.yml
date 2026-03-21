@@ -11,11 +11,9 @@ steps:
       buildkite-agent pipeline upload /tmp/cicd/templates/code-linter.yml
 
   - label: ":shield: Load security scan pipeline"
-  - label: ":shield: Load security scan pipeline"
     command: |
       buildkite-agent pipeline upload /tmp/cicd/templates/security-scan.yml
 
-  - label: ":docker: Load image build pipeline"
   - label: ":docker: Load image build pipeline"
     command: |
       buildkite-agent pipeline upload /tmp/cicd/templates/image-build.yml

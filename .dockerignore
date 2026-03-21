@@ -50,3 +50,4 @@ coverage.html
 # Temporary files
 tmp/
 temp/
+.buildkite/**

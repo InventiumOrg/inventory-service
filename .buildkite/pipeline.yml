@@ -2,20 +2,25 @@
 steps:
   - label: ":git: Clone centralized pipeline repo"
     command: |
+      echo "Cloning centralized pipeline repository..."
       git clone --depth 1 https://github.com/InventiumOrg/buildkite-cicd.git /tmp/cicd
-      ls -la .
-      ls -la /tmp/cicd
+      
+      echo "Verifying clone..."
+      ls -la /tmp/cicd/templates/
+      
+      echo "Clone successful!"
 
   - wait
 
   - label: ":golangci-lint: Load code linter pipeline"
     command: |
-      buildkite-agent pipeline upload .buildkite/templates/code-linter.yml
+      ls -la /tmp/cicd/templates
+      buildkite-agent pipeline upload /tmp/cicd/templates/code-linter.yml
 
   - label: ":shield: Load security scan pipeline"
     command: |
-      buildkite-agent pipeline upload .buildkite/templates/security-scan.yml
+      buildkite-agent pipeline upload /tmp/cicd/templates/security-scan.yml
 
   - label: ":docker: Load image build pipeline"
     command: |
-      buildkite-agent pipeline upload .buildkite/templates/image-build.yml
+      buildkite-agent pipeline upload /tmp/cicd/templates/image-build.yml

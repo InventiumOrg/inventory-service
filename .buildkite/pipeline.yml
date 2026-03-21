@@ -8,6 +8,9 @@ steps:
 
   - label: ":pipeline: Load code linter pipeline"
     command: |
+      ls -la .
+      ls -ls /tmp
+      ls -la /tmp/cicd
       buildkite-agent pipeline upload /tmp/cicd/templates/code-linter.yml
 
   - label: ":shield: Load security scan pipeline"

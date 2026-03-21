@@ -11,12 +11,12 @@ steps:
       ls -la .
       ls -ls /tmp
       ls -la /tmp/cicd
-      buildkite-agent pipeline upload /tmp/cicd/templates/code-linter.yml
+      buildkite-agent pipeline upload templates/code-linter.yml
 
   - label: ":shield: Load security scan pipeline"
     command: |
-      buildkite-agent pipeline upload /tmp/cicd/templates/security-scan.yml
+      buildkite-agent pipeline upload templates/security-scan.yml
 
   - label: ":docker: Load image build pipeline"
     command: |
-      buildkite-agent pipeline upload /tmp/cicd/templates/image-build.yml
+      buildkite-agent pipeline upload templates/image-build.yml

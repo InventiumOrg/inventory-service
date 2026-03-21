@@ -1,15 +1,21 @@
 # In each microservice repo
 steps:
+  - label: ":git: Clone centralized pipeline repo"
+    command: |
+      git clone --depth 1 https://github.com/InventiumOrg/buildkite-cicd.git /tmp/cicd
+
+  - wait
+
   - label: ":pipeline: Load code linter pipeline"
     command: |
-      git clone https://github.com/InventiumOrg/buildkite-cicd
-      cd buildkite-cicd
-      buildkite-agent pipeline upload code-linter.yml
+      buildkite-agent pipeline upload /tmp/cicd/templates/code-linter.yml
 
   - label: ":shield: Load security scan pipeline"
+  - label: ":shield: Load security scan pipeline"
     command: |
-      curl -fsSL https://raw.githubusercontent.com/InventiumOrg/buildkite-cicd/main/templates/security-scan.yml | buildkite-agent pipeline upload -
+      buildkite-agent pipeline upload /tmp/cicd/templates/security-scan.yml
 
   - label: ":docker: Load image build pipeline"
+  - label: ":docker: Load image build pipeline"
     command: |
-      curl -fsSL https://raw.githubusercontent.com/InventiumOrg/buildkite-cicd/main/templates/image-build.yml | buildkite-agent pipeline upload -
+      buildkite-agent pipeline upload /tmp/cicd/templates/image-build.yml

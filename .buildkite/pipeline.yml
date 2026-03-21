@@ -1,34 +1,13 @@
+# In each microservice repo
 steps:
-  - group: ":golangci-lint: Go Lang Linter"
-    key: "golangci-lint"
-    steps:
-      - label: ""
-        command: |
-          echo "Running Go Linter...."
-          golangci-lint run -v --new-from-rev $BUILDKITE_PULL_REQUEST_BASE_BRANCH
+  - label: "Load code linter pipeline"
+    command: |
+      buildkite-agent pipeline upload https://raw.githubusercontent.com/InventiumOrg/buildkite-cicd/main/templates/code-linter.yml
 
-  - group: ":bug: Repository Scan"
-    key: "securiy-scan"
-    steps:
-      - label: ":trivy: Trivy Repository Scan"
-        command: |
-          echo "Scanning Repo..."
-          trivy repo ./
-        key: trivy
+  - label: "Load security scan pipeline"
+    command: |
+      buildkite-agent pipeline upload https://raw.githubusercontent.com/InventiumOrg/buildkite-cicd/main/templates/security-scan.yml
 
-  - group: ":docker: Multi-Platform Image Build"
-    key: "image-build"
-    steps:
-      - label: ":construction_worker: Build"
-        command: echo "Build the rocket"
-        key: build
-
-      - label: ":white_check_mark: Test"
-        command: echo "Test the rocket"
-        key: test
-        depends_on: build
-
-      - label: ":rocket: Deploy"
-        command: |
-          echo "Launch the rocket"
-          cat .buildkite/annotation.md | buildkite-agent annotate --style 
+  - label: "Load image build pipeline"
+    command: |
+      buildkite-agent pipeline upload https://raw.githubusercontent.com/InventiumOrg/buildkite-cicd/main/templates/image-build.yml

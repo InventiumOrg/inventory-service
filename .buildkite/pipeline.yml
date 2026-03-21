@@ -3,6 +3,8 @@ steps:
   - label: ":git: Clone centralized pipeline repo"
     command: |
       git clone --depth 1 https://github.com/InventiumOrg/buildkite-cicd.git /tmp/cicd
+      ls -la .
+      ls -la /tmp/cicd
 
   - wait
 

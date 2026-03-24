@@ -1,5 +1,5 @@
 # Build stage - use build platform for faster compilation
-FROM --platform=$BUILDPLATFORM docker.io/golang:1.24-alpine AS builder
+FROM --platform=$BUILDPLATFORM docker.io/golang:1.25-alpine AS builder
 
 # Build arguments automatically provided by Docker
 ARG TARGETOS

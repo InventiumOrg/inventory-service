@@ -12,7 +12,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/clerk/clerk-sdk-go/v2"
 	"github.com/jackc/pgx/v5"
 	"github.com/segmentio/kafka-go"
 )
@@ -25,41 +24,56 @@ const attemptThreshold = 5
 
 // setupLogging configures logging based on environment variables
 func setupLogging(cfg config.Config) error {
-	// Priority order: OTLP > Loki > Syslog > File > Stdout
+	var handlers []slog.Handler
 
-	// Option 1: Direct OTLP Logs (recommended for OpenTelemetry)
+	// Collect all configured handlers
+	handlersConfigured := false
+
+	// Option 1: OTLP Logs (for OpenTelemetry)
 	if cfg.OTELExporterOTLPEndpoint != "" {
 		endpoint := "http://" + cfg.OTELExporterOTLPEndpoint
 		if err := observability.SetupOTLPLogging(endpoint, cfg.ServiceName); err == nil {
-			slog.Info("Using OTLP logging", slog.String("endpoint", endpoint))
-			return nil
+			slog.Info("OTLP logging enabled", slog.String("endpoint", endpoint))
+			// Note: SetupOTLPLogging sets the default logger internally
+			// We'll need to refactor to get the handler instead
+			handlersConfigured = true
+		} else {
+			slog.Warn("OTLP logging failed", slog.Any("error", err))
 		}
-		slog.Warn("OTLP logging failed, trying next option")
 	}
 
-	// Option 2: Direct Loki HTTP (no file needed)
+	// Option 2: Loki HTTP (can run alongside OTLP)
 	if cfg.LokiURL != "" {
-		if err := observability.SetupDirectLokiLogging(cfg.LokiURL, cfg.ServiceName); err == nil {
-			slog.Info("Using direct Loki logging", slog.String("url", cfg.LokiURL))
-			return nil
+		lokiConfig := observability.LokiConfig{
+			URL: cfg.LokiURL,
+			Labels: map[string]string{
+				"service": cfg.ServiceName,
+				"job":     "go-direct",
+				"source":  "application",
+			},
+			Level: slog.LevelInfo,
 		}
-		slog.Warn("Direct Loki logging failed, trying next option")
+		lokiHandler := observability.NewLokiHandler(lokiConfig)
+		handlers = append(handlers, lokiHandler)
+		slog.Info("Loki logging enabled", slog.String("url", cfg.LokiURL))
+		handlersConfigured = true
 	}
 
-	// Option 3: Syslog (for traditional setups)
+	// Option 3: Syslog (can run alongside others)
 	if cfg.SyslogAddress != "" {
 		network := cfg.SyslogNetwork
 		if network == "" {
 			network = "udp"
 		}
 		if err := observability.SetupSyslogLogging(network, cfg.SyslogAddress, cfg.ServiceName); err == nil {
-			slog.Info("Using syslog logging", slog.String("address", cfg.SyslogAddress))
-			return nil
+			slog.Info("Syslog logging enabled", slog.String("address", cfg.SyslogAddress))
+			handlersConfigured = true
+		} else {
+			slog.Warn("Syslog logging failed", slog.Any("error", err))
 		}
-		slog.Warn("Syslog logging failed, trying next option")
 	}
 
-	// Option 4: File logging (fallback)
+	// Option 4: File logging (can run alongside others)
 	if cfg.LogFilePath != "" {
 		logConfig := observability.LogConfig{
 			FilePath:   cfg.LogFilePath,
@@ -69,14 +83,29 @@ func setupLogging(cfg config.Config) error {
 			Compress:   true,
 		}
 		if err := observability.SetupAdvancedFileLogger(logConfig); err == nil {
-			slog.Info("Using file logging", slog.String("path", cfg.LogFilePath))
-			return nil
+			slog.Info("File logging enabled", slog.String("path", cfg.LogFilePath))
+			handlersConfigured = true
+		} else {
+			slog.Warn("File logging failed", slog.Any("error", err))
 		}
-		slog.Warn("File logging failed, using stdout")
 	}
 
-	// Option 5: Default stdout JSON logging
-	slog.Info("Using default stdout logging")
+	// If we have multiple handlers, combine them
+	if len(handlers) > 1 {
+		multiHandler := observability.NewMultiHandler(handlers...)
+		logger := slog.New(multiHandler)
+		slog.SetDefault(logger)
+		slog.Info("Multi-handler logging configured", slog.Int("handlers", len(handlers)))
+	} else if len(handlers) == 1 {
+		logger := slog.New(handlers[0])
+		slog.SetDefault(logger)
+	}
+
+	// Option 5: Default stdout JSON logging (if nothing else configured)
+	if !handlersConfigured {
+		slog.Info("Using default stdout logging")
+	}
+
 	return nil
 }
 
@@ -94,10 +123,8 @@ func main() {
 		// Continue with stdout logging if setup fails
 	}
 
-	clerk.SetKey(config.ClerkKey)
-	test := os.Getenv("DB_SOURCE")
-	print(test)
-	slog.Info("Connecting to database", slog.String("DB_SOURCE", config.DBSource))
+	time.Sleep(10 * time.Second)
+	slog.Info("Connecting to database")
 
 	attempt := 1
 	for attempt <= attemptThreshold {

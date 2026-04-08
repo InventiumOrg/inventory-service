@@ -12,7 +12,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/clerk/clerk-sdk-go/v2"
 	"github.com/jackc/pgx/v5"
 	"github.com/segmentio/kafka-go"
 )
@@ -23,59 +22,20 @@ var dialer *kafka.Dialer
 
 const attemptThreshold = 5
 
-// setupLogging configures logging based on environment variables
+// setupLogging configures logging to use OTLP
 func setupLogging(cfg config.Config) error {
-	// Priority order: OTLP > Loki > Syslog > File > Stdout
-
-	// Option 1: Direct OTLP Logs (recommended for OpenTelemetry)
+	// Use OTLP for logs if configured
 	if cfg.OTELExporterOTLPEndpoint != "" {
 		endpoint := "http://" + cfg.OTELExporterOTLPEndpoint
 		if err := observability.SetupOTLPLogging(endpoint, cfg.ServiceName); err == nil {
-			slog.Info("Using OTLP logging", slog.String("endpoint", endpoint))
+			slog.Info("OTLP logging configured", slog.String("endpoint", endpoint))
 			return nil
+		} else {
+			slog.Warn("OTLP logging failed, falling back to stdout", slog.Any("error", err))
 		}
-		slog.Warn("OTLP logging failed, trying next option")
 	}
 
-	// Option 2: Direct Loki HTTP (no file needed)
-	if cfg.LokiURL != "" {
-		if err := observability.SetupDirectLokiLogging(cfg.LokiURL, cfg.ServiceName); err == nil {
-			slog.Info("Using direct Loki logging", slog.String("url", cfg.LokiURL))
-			return nil
-		}
-		slog.Warn("Direct Loki logging failed, trying next option")
-	}
-
-	// Option 3: Syslog (for traditional setups)
-	if cfg.SyslogAddress != "" {
-		network := cfg.SyslogNetwork
-		if network == "" {
-			network = "udp"
-		}
-		if err := observability.SetupSyslogLogging(network, cfg.SyslogAddress, cfg.ServiceName); err == nil {
-			slog.Info("Using syslog logging", slog.String("address", cfg.SyslogAddress))
-			return nil
-		}
-		slog.Warn("Syslog logging failed, trying next option")
-	}
-
-	// Option 4: File logging (fallback)
-	if cfg.LogFilePath != "" {
-		logConfig := observability.LogConfig{
-			FilePath:   cfg.LogFilePath,
-			MaxSizeMB:  100,
-			MaxBackups: 5,
-			MaxAgeDays: 30,
-			Compress:   true,
-		}
-		if err := observability.SetupAdvancedFileLogger(logConfig); err == nil {
-			slog.Info("Using file logging", slog.String("path", cfg.LogFilePath))
-			return nil
-		}
-		slog.Warn("File logging failed, using stdout")
-	}
-
-	// Option 5: Default stdout JSON logging
+	// Fallback to stdout JSON logging
 	slog.Info("Using default stdout logging")
 	return nil
 }
@@ -94,10 +54,8 @@ func main() {
 		// Continue with stdout logging if setup fails
 	}
 
-	clerk.SetKey(config.ClerkKey)
-	test := os.Getenv("DB_SOURCE")
-	print(test)
-	slog.Info("Connecting to database", slog.String("DB_SOURCE", config.DBSource))
+	time.Sleep(10 * time.Second)
+	slog.Info("Connecting to database")
 
 	attempt := 1
 	for attempt <= attemptThreshold {

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/propagation"
@@ -71,12 +72,31 @@ func SetupOTelSDK(ctx context.Context, serviceName, serviceVersion, otelCollecto
 }
 
 func newResource(serviceName, serviceVersion string) (*resource.Resource, error) {
-	// Create resource without merging to avoid schema conflicts
-	return resource.NewWithAttributes(
-		semconv.SchemaURL,
+	// Start with base attributes
+	attrs := []attribute.KeyValue{
 		semconv.ServiceName(serviceName),
 		semconv.ServiceVersion(serviceVersion),
 		semconv.ServiceInstanceID("inventory-service"),
+	}
+
+	// Parse OTEL_RESOURCE_ATTRIBUTES from environment
+	// Format: key1=value1,key2=value2
+	if resourceAttrs := os.Getenv("OTEL_RESOURCE_ATTRIBUTES"); resourceAttrs != "" {
+		pairs := strings.Split(resourceAttrs, ",")
+		for _, pair := range pairs {
+			if kv := strings.SplitN(strings.TrimSpace(pair), "=", 2); len(kv) == 2 {
+				key := strings.TrimSpace(kv[0])
+				value := strings.TrimSpace(kv[1])
+				attrs = append(attrs, attribute.String(key, value))
+				slog.Info("Added resource attribute", slog.String("key", key), slog.String("value", value))
+			}
+		}
+	}
+
+	// Create resource with all attributes
+	return resource.NewWithAttributes(
+		semconv.SchemaURL,
+		attrs...,
 	), nil
 }
 

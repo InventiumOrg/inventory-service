@@ -18,6 +18,17 @@ type LokiHandler struct {
 	labels   map[string]string
 	level    slog.Level
 	fallback slog.Handler // Fallback to stdout if Loki is unavailable
+	auth     *LokiAuth    // Authentication configuration
+}
+
+// LokiAuth holds authentication configuration
+type LokiAuth struct {
+	Type     string // "basic", "bearer", "header"
+	Username string // For basic auth
+	Password string // For basic auth
+	Token    string // For bearer token
+	Header   string // Custom header name
+	Value    string // Custom header value
 }
 
 // LokiConfig holds configuration for Loki handler
@@ -25,6 +36,7 @@ type LokiConfig struct {
 	URL    string
 	Labels map[string]string
 	Level  slog.Level
+	Auth   *LokiAuth // Optional authentication
 }
 
 // NewLokiHandler creates a new Loki handler
@@ -47,6 +59,7 @@ func NewLokiHandler(config LokiConfig) *LokiHandler {
 		labels:   config.Labels,
 		level:    config.Level,
 		fallback: slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: config.Level}),
+		auth:     config.Auth,
 	}
 }
 
@@ -87,6 +100,7 @@ func (h *LokiHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
 		labels:   newLabels,
 		level:    h.level,
 		fallback: h.fallback.WithAttrs(attrs),
+		auth:     h.auth,
 	}
 }
 
@@ -98,6 +112,7 @@ func (h *LokiHandler) WithGroup(name string) slog.Handler {
 		labels:   h.labels,
 		level:    h.level,
 		fallback: h.fallback.WithGroup(name),
+		auth:     h.auth,
 	}
 }
 
@@ -161,6 +176,9 @@ func (h *LokiHandler) sendToLoki(record slog.Record) {
 
 	req.Header.Set("Content-Type", "application/json")
 
+	// Add authentication if configured
+	h.addAuthentication(req)
+
 	resp, err := h.client.Do(req)
 	if err != nil {
 		return // Silently fail
@@ -170,6 +188,28 @@ func (h *LokiHandler) sendToLoki(record slog.Record) {
 			slog.Error("Error closing connnection to Loki", slog.Any("Error", err))
 		}
 	}()
+}
+
+// addAuthentication adds authentication headers to the request
+func (h *LokiHandler) addAuthentication(req *http.Request) {
+	if h.auth == nil {
+		return
+	}
+
+	switch h.auth.Type {
+	case "basic":
+		if h.auth.Username != "" && h.auth.Password != "" {
+			req.SetBasicAuth(h.auth.Username, h.auth.Password)
+		}
+	case "bearer":
+		if h.auth.Token != "" {
+			req.Header.Set("Authorization", "Bearer "+h.auth.Token)
+		}
+	case "header":
+		if h.auth.Header != "" && h.auth.Value != "" {
+			req.Header.Set(h.auth.Header, h.auth.Value)
+		}
+	}
 }
 
 // SetupDirectLokiLogging configures slog to send logs directly to Loki
@@ -191,6 +231,43 @@ func SetupDirectLokiLogging(lokiURL string, serviceName string) error {
 	slog.Info("Direct Loki logging configured",
 		slog.String("loki_url", lokiURL),
 		slog.String("service", serviceName))
+
+	return nil
+}
+
+// SetupAuthenticatedLokiLogging configures slog to send logs to authenticated Loki
+func SetupAuthenticatedLokiLogging(lokiURL, serviceName, authType, username, password, token, header, value string) error {
+	var auth *LokiAuth
+	if authType != "" {
+		auth = &LokiAuth{
+			Type:     authType,
+			Username: username,
+			Password: password,
+			Token:    token,
+			Header:   header,
+			Value:    value,
+		}
+	}
+
+	config := LokiConfig{
+		URL: lokiURL,
+		Labels: map[string]string{
+			"service": serviceName,
+			"job":     "go-direct",
+			"source":  "application",
+		},
+		Level: slog.LevelInfo,
+		Auth:  auth,
+	}
+
+	handler := NewLokiHandler(config)
+	logger := slog.New(handler)
+	slog.SetDefault(logger)
+
+	slog.Info("Authenticated Loki logging configured",
+		slog.String("loki_url", lokiURL),
+		slog.String("service", serviceName),
+		slog.String("auth_type", authType))
 
 	return nil
 }

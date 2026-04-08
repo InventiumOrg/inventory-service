@@ -24,6 +24,9 @@ type Config struct {
 	ClerkKey                 string `mapstructure:"CLERK_KEY"`
 	LogFilePath              string `mapstructure:"LOG_FILE_PATH"`
 	LokiURL                  string `mapstructure:"LOKI_URL"`
+	LokiUsername             string `mapstructure:"LOKI_USERNAME"`
+	LokiPassword             string `mapstructure:"LOKI_PASSWORD"`
+	LokiAuthType             string `mapstructure:"LOKI_AUTH_TYPE"`
 	SyslogAddress            string `mapstructure:"SYSLOG_ADDRESS"`
 	SyslogNetwork            string `mapstructure:"SYSLOG_NETWORK"`
 }
@@ -52,6 +55,9 @@ func LoadConfig(path string) (config Config, err error) {
 	_ = viper.BindEnv("CLERK_KEY")
 	_ = viper.BindEnv("LOG_FILE_PATH")
 	_ = viper.BindEnv("LOKI_URL")
+	_ = viper.BindEnv("LOKI_USERNAME")
+	_ = viper.BindEnv("LOKI_PASSWORD")
+	_ = viper.BindEnv("LOKI_AUTH_TYPE")
 	_ = viper.BindEnv("SYSLOG_ADDRESS")
 	_ = viper.BindEnv("SYSLOG_NETWORK")
 

@@ -25,13 +25,18 @@ type Server struct {
 
 func NewServer(db *pgx.Conn, serviceName, serviceVersion, otelEndpoint, otelHeaders string) *Server {
 	// Setup OpenTelemetry
-	// ctx := context.Background()
-	// otelShutdown, err := observability.SetupOTelSDK(ctx, serviceName, serviceVersion, otelEndpoint, otelHeaders)
-	// if err != nil {
-	// 	slog.Error("Failed to setup OpenTelemetry", slog.Any("error", err))
-	// 	// Continue without OpenTelemetry
-	// 	otelShutdown = func(context.Context) error { return nil }
-	// }
+	ctx := context.Background()
+	otelShutdown, err := observability.SetupOTelSDK(ctx, serviceName, serviceVersion, otelEndpoint, otelHeaders)
+	if err != nil {
+		slog.Error("Failed to setup OpenTelemetry", slog.Any("error", err))
+		// Continue without OpenTelemetry
+		otelShutdown = func(context.Context) error { return nil }
+	} else {
+		slog.Info("OpenTelemetry SDK initialized successfully",
+			slog.String("service", serviceName),
+			slog.String("version", serviceVersion),
+			slog.String("endpoint", otelEndpoint))
+	}
 
 	// Create OTEL metrics
 	metrics, err := observability.CreateMetrics()
@@ -46,9 +51,9 @@ func NewServer(db *pgx.Conn, serviceName, serviceVersion, otelEndpoint, otelHead
 
 	// Add metrics middleware
 	server := &Server{
-		router: router,
-		db:     db,
-		// otelShutdown:      otelShutdown,
+		router:            router,
+		db:                db,
+		otelShutdown:      otelShutdown,
 		metrics:           metrics,
 		prometheusMetrics: prometheusMetrics,
 	}

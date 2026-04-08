@@ -22,90 +22,21 @@ var dialer *kafka.Dialer
 
 const attemptThreshold = 5
 
-// setupLogging configures logging based on environment variables
+// setupLogging configures logging to use OTLP
 func setupLogging(cfg config.Config) error {
-	var handlers []slog.Handler
-
-	// Collect all configured handlers
-	handlersConfigured := false
-
-	// Option 1: OTLP Logs (for OpenTelemetry)
+	// Use OTLP for logs if configured
 	if cfg.OTELExporterOTLPEndpoint != "" {
 		endpoint := "http://" + cfg.OTELExporterOTLPEndpoint
 		if err := observability.SetupOTLPLogging(endpoint, cfg.ServiceName); err == nil {
-			slog.Info("OTLP logging enabled", slog.String("endpoint", endpoint))
-			// Note: SetupOTLPLogging sets the default logger internally
-			// We'll need to refactor to get the handler instead
-			handlersConfigured = true
+			slog.Info("OTLP logging configured", slog.String("endpoint", endpoint))
+			return nil
 		} else {
-			slog.Warn("OTLP logging failed", slog.Any("error", err))
+			slog.Warn("OTLP logging failed, falling back to stdout", slog.Any("error", err))
 		}
 	}
 
-	// Option 2: Loki HTTP (can run alongside OTLP)
-	if cfg.LokiURL != "" {
-		lokiConfig := observability.LokiConfig{
-			URL: cfg.LokiURL,
-			Labels: map[string]string{
-				"service": cfg.ServiceName,
-				"job":     "go-direct",
-				"source":  "application",
-			},
-			Level: slog.LevelInfo,
-		}
-		lokiHandler := observability.NewLokiHandler(lokiConfig)
-		handlers = append(handlers, lokiHandler)
-		slog.Info("Loki logging enabled", slog.String("url", cfg.LokiURL))
-		handlersConfigured = true
-	}
-
-	// Option 3: Syslog (can run alongside others)
-	if cfg.SyslogAddress != "" {
-		network := cfg.SyslogNetwork
-		if network == "" {
-			network = "udp"
-		}
-		if err := observability.SetupSyslogLogging(network, cfg.SyslogAddress, cfg.ServiceName); err == nil {
-			slog.Info("Syslog logging enabled", slog.String("address", cfg.SyslogAddress))
-			handlersConfigured = true
-		} else {
-			slog.Warn("Syslog logging failed", slog.Any("error", err))
-		}
-	}
-
-	// Option 4: File logging (can run alongside others)
-	if cfg.LogFilePath != "" {
-		logConfig := observability.LogConfig{
-			FilePath:   cfg.LogFilePath,
-			MaxSizeMB:  100,
-			MaxBackups: 5,
-			MaxAgeDays: 30,
-			Compress:   true,
-		}
-		if err := observability.SetupAdvancedFileLogger(logConfig); err == nil {
-			slog.Info("File logging enabled", slog.String("path", cfg.LogFilePath))
-			handlersConfigured = true
-		} else {
-			slog.Warn("File logging failed", slog.Any("error", err))
-		}
-	}
-
-	// If we have multiple handlers, combine them
-	if len(handlers) > 1 {
-		multiHandler := observability.NewMultiHandler(handlers...)
-		logger := slog.New(multiHandler)
-		slog.SetDefault(logger)
-		slog.Info("Multi-handler logging configured", slog.Int("handlers", len(handlers)))
-	} else if len(handlers) == 1 {
-		logger := slog.New(handlers[0])
-		slog.SetDefault(logger)
-	}
-
-	// Option 5: Default stdout JSON logging (if nothing else configured)
-	if !handlersConfigured {
-		slog.Info("Using default stdout logging")
-	}
-
+	// Fallback to stdout JSON logging
+	slog.Info("Using default stdout logging")
 	return nil
 }
 

@@ -74,7 +74,7 @@ func (ad *AvroDeserializer) getSchema(schemaID int) (*goavro.Codec, error) {
 		fmt.Printf("Failed to fetch schema from registry, using fallback: %v\n", err)
 		schemaJSON = `{
 			"type": "record",
-			"name": "inventory_import",
+			"name": "inventory_transaction",
 			"namespace": "com.inventium",
 			"fields": [
 				{"name": "quantity", "type": "int", "default": 5},

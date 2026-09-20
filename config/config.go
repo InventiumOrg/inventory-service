@@ -7,6 +7,7 @@ import (
 )
 
 type Config struct {
+	FrontEndClient           string `mapstructure:"FRONTEND_CLIENT"`
 	TopicName                string `mapstructure:"TOPIC_NAME"`
 	KafkaUri                 string `mapstructure:"KAFKA_URI"`
 	KafkaCAFilePath          string `mapstructure:"KAFKA_CA_FILE_PATH"`
@@ -17,6 +18,7 @@ type Config struct {
 	SchemaRegistryUsername   string `mapstructure:"SCHEMA_REGISTRY_USERNAME"`
 	SchemaRegistryPassword   string `mapstructure:"SCHEMA_REGISTRY_PASSWORD"`
 	ServiceName              string `mapstructure:"SERVICE_NAME"`
+	Environment              string `mapstructure:"ENVIRONMENT"`
 	OTELExporterOTLPEndpoint string `mapstructure:"OTEL_EXPORTER_OTLP_ENDPOINT"`
 	OTELExporterOTLPHeaders  string `mapstructure:"OTEL_EXPORTER_OTLP_HEADERS"`
 	OTELResourceAttreibutes  string `mapstructure:"OTEL_RESOURCE_ATTRIBUTES"`
@@ -38,6 +40,8 @@ func LoadConfig(path string) (config Config, err error) {
 	viper.AutomaticEnv()
 
 	// Explicitly bind each config key to its environment variable
+	_ = viper.BindEnv("FRONTEND_CLIENT")
+	_ = viper.BindEnv("ENVIRONMENT")
 	_ = viper.BindEnv("TOPIC_NAME")
 	_ = viper.BindEnv("KAFKA_URI")
 	_ = viper.BindEnv("KAFKA_CA_FILE_PATH")

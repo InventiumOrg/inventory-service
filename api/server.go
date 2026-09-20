@@ -2,8 +2,10 @@ package api
 
 import (
 	"context"
+	"inventory-service/config"
 	"inventory-service/observability"
 	"inventory-service/routes"
+	"inventory-service/utils"
 	"log/slog"
 	"time"
 
@@ -23,19 +25,21 @@ type Server struct {
 	prometheusMetrics *observability.PrometheusMetrics
 }
 
-func NewServer(db *pgx.Conn, serviceName, serviceVersion, otelEndpoint, otelHeaders string) *Server {
+const serviceVersion = "1.0.0"
+
+func NewServer(db *pgx.Conn, config *config.Config) *Server {
 	// Setup OpenTelemetry
 	ctx := context.Background()
-	otelShutdown, err := observability.SetupOTelSDK(ctx, serviceName, serviceVersion, otelEndpoint, otelHeaders)
+	otelShutdown, err := observability.SetupOTelSDK(ctx, config.ServiceName, serviceVersion, config.OTELExporterOTLPEndpoint, config.OTELExporterOTLPHeaders)
 	if err != nil {
 		slog.Error("Failed to setup OpenTelemetry", slog.Any("error", err))
 		// Continue without OpenTelemetry
 		otelShutdown = func(context.Context) error { return nil }
 	} else {
 		slog.Info("OpenTelemetry SDK initialized successfully",
-			slog.String("service", serviceName),
+			slog.String("service", config.ServiceName),
 			slog.String("version", serviceVersion),
-			slog.String("endpoint", otelEndpoint))
+			slog.String("endpoint", config.OTELExporterOTLPEndpoint))
 	}
 
 	// Create OTEL metrics
@@ -45,7 +49,7 @@ func NewServer(db *pgx.Conn, serviceName, serviceVersion, otelEndpoint, otelHead
 	}
 
 	// Create Prometheus metrics
-	prometheusMetrics := observability.NewPrometheusMetrics(serviceName)
+	prometheusMetrics := observability.NewPrometheusMetrics(config.ServiceName)
 
 	router := gin.Default()
 
@@ -67,13 +71,19 @@ func NewServer(db *pgx.Conn, serviceName, serviceVersion, otelEndpoint, otelHead
 	// Setup Prometheus /metrics endpoint
 	observability.SetupPrometheusEndpoint(router)
 
-	server.router.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:8080"},
-		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"},
-		AllowHeaders:     []string{"Origins", "Content-Type", "Authorization", "Bearer"},
-		AllowCredentials: true,
-		MaxAge:           12 * time.Hour,
-	}))
+	// Setup CORS; without an allowed origin the middleware is skipped, so browsers block cross-origin requests
+	origin, err := utils.CORSOrigin(config.Environment, config.FrontEndClient)
+	if err != nil {
+		slog.Error("Cannot load origins for CORS Policy", slog.Any("error", err))
+	} else {
+		server.router.Use(cors.New(cors.Config{
+			AllowOrigins:     []string{origin},
+			AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"},
+			AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "Bearer"},
+			AllowCredentials: true,
+			MaxAge:           12 * time.Hour,
+		}))
+	}
 	// Setup routes
 	server.routes = routes.NewRoute(db, prometheusMetrics)
 	server.routes.AddHealthRoutes(router)

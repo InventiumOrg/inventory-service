@@ -86,7 +86,7 @@ func main() {
 	}
 
 	// Create server with inventory-specific service name
-	router := api.NewServer(conn, config.ServiceName, "1.0.0", config.OTELExporterOTLPEndpoint, config.OTELExporterOTLPHeaders)
+	router := api.NewServer(conn, &config)
 	invetoryProcessor := processors.NewInventoryProcessor(conn, consumer, dialer)
 	err = invetoryProcessor.Init(config)
 	if err != nil {

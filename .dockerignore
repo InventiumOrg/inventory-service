@@ -50,4 +50,17 @@ coverage.html
 # Temporary files
 tmp/
 temp/
+
+
+# Documentation
+docs/**
+
+.trivyignore.yaml
+Makefile
+
+# AI Agent
+.claude
+.cursor
+
+# Buildkite
 .buildkite/**

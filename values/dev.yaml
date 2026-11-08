@@ -1,0 +1,30 @@
+# Dev cluster overlay. Use with base.yaml:
+#   helm template inventory-service <chart> -f values/base.yaml -f values/dev.yaml
+
+image:
+  repository: 596484148719.dkr.ecr.ap-southeast-1.amazonaws.com/inventium/inventory-service
+  tag: "0.1.0"
+
+replicaCount: 2
+
+httproute:
+  hostnames:
+    - api.dev.inventium.io
+
+config:
+  ENVIRONMENT: dev
+  OTEL_EXPORTER_OTLP_ENDPOINT: localhost:4318
+  OTEL_RESOURCE_ATTRIBUTES: service.name=inventory-service,service.version=1.0.0,deployment.environment=dev
+  KAFKA_URI: inventium-kafka-dc1-inventium01.d.aivencloud.com:16690
+  SCHEMA_REGISTRY_URL: https://inventium-kafka-dc1-inventium01.d.aivencloud.com:16682
+
+logging:
+  environment: dev
+  otelCollector:
+    debug: true
+  loki:
+    username: inventium
+  tempo:
+    username: inventium
+  prometheus:
+    username: inventium

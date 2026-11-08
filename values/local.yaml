@@ -1,0 +1,31 @@
+# Local cluster overlay. Use with base.yaml:
+#   helm template inventory-service <chart> -f values/base.yaml -f values/local.yaml
+
+image:
+  tag: c080c1c
+
+httproute:
+  hostnames:
+    - api.inventium.localhost
+
+config:
+  ENVIRONMENT: local
+  FRONTEND_CLIENT: http://inventium.localhost
+  OTEL_EXPORTER_OTLP_ENDPOINT: localhost:4318
+  OTEL_RESOURCE_ATTRIBUTES: service.name=inventory-service,service.version=1.0.0,deployment.environment=local
+  KAFKA_URI: inventium-kafka-dc1-inventium01.d.aivencloud.com:16690
+  SCHEMA_REGISTRY_URL: https://inventium-kafka-dc1-inventium01.d.aivencloud.com:16682
+
+logging:
+  environment: local
+  otelCollector:
+    debug: true # Enable the debug exporter for local troubleshooting
+    logLevel: debug
+  # Local clusters have no Loki/Tempo/Prometheus; everything goes to the
+  # debug exporter instead.
+  loki:
+    enabled: false
+  tempo:
+    enabled: false
+  metrics:
+    enabled: false

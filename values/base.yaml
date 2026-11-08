@@ -1,0 +1,124 @@
+# Environment-independent values for inventory-service.
+#
+# Rendered by the centralized golden chart (InventiumOrg/platform-microservice).
+# Always used together with exactly one environment overlay:
+#
+#   helm upgrade --install inventory-service \
+#     oci://596484148719.dkr.ecr.ap-southeast-1.amazonaws.com/inventium/charts/platform-microservice \
+#     --version 2.0.0 \
+#     --namespace inventory-service --create-namespace \
+#     -f values/base.yaml -f values/dev.yaml \
+#     --set image.tag="$BUILD_TAG"
+
+# Keeps object names stable regardless of the release name.
+nameOverride: inventory-service
+namespace: inventory-service
+
+image:
+  repository: 743008455320.dkr.ecr.ap-southeast-1.amazonaws.com/inventium/inventory-service
+  pullPolicy: Always
+  # tag is set per environment, or by CI via --set image.tag=$BUILD_TAG
+
+imagePullSecrets:
+  - ecr-registry-secret
+
+serviceAccount:
+  create: false
+  automount: false
+
+replicaCount: 1
+
+service:
+  type: ClusterIP
+  port: 13740
+
+# Probes target the container port by name ("http"), so the port number lives
+# in service.port only and never needs to be kept in sync in two places.
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: http
+  initialDelaySeconds: 30 # Conservative: avoid killing during slow startup
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /readyz
+    port: http
+  initialDelaySeconds: 5 # Aggressive: start serving traffic quickly
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 2
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 512Mi
+  requests:
+    cpu: 200m
+    memory: 256Mi
+
+# Routing is identical in every environment except the hostname.
+httproute:
+  enabled: true
+  gateway:
+    name: kong
+    namespace: kong
+  annotations:
+    konghq.com/rewrite: '/'
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /v1/inventory
+
+# Non-sensitive configuration (rendered into a ConfigMap).
+# Never put credentials here - see existingSecrets below.
+config:
+  SERVICE_NAME: inventory-service
+  LOG_FILE_PATH: /logs/otel-logs.json
+  TOPIC_NAME: inventory.transaction.status.updated
+  KAFKA_CONSUMER_GROUP: inventory-service-group
+  KAFKA_CA_FILE_PATH: /etc/secrets/ca.pem
+
+# Kafka CA bundle, mounted read-only at /etc/secrets/ca.pem.
+# Kept out of git as a pre-created secret. Create it once per namespace:
+#   kubectl create secret generic inventory-service-kafka-ca \
+#     --from-file=ca.pem=ca.pem -n inventory-service
+secretFiles:
+  enabled: true
+  mountPath: /etc/secrets
+  existingSecret: inventory-service-kafka-ca
+
+# Credentials live outside the chart (DB_SOURCE, CLERK_KEY,
+# OTEL_EXPORTER_OTLP_HEADERS, Loki/Tempo/Prometheus passwords).
+# Create the secret once per namespace:
+#   kubectl create secret generic inventory-service-env \
+#     --from-env-file=app.env -n inventory-service
+existingSecrets:
+  - inventory-service-env
+
+logging:
+  enabled: true
+  insecure: false
+  logPath: /logs
+  format: json
+  otelCollector:
+    image: otel/opentelemetry-collector-contrib:0.93.0
+    logLevel: info
+    resources:
+      limits:
+        cpu: 200m
+        memory: 256Mi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+  metrics:
+    enabled: true
+    path: /metrics
+    scrapeInterval: 30s
+  extraLabels:
+    team: platform
+    service: inventory-service
